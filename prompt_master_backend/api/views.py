@@ -1,4 +1,4 @@
-from rest_framework import generics, permissions, status, filters
+from rest_framework import generics, permissions, status, filters, viewsets
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.views import APIView
@@ -9,9 +9,12 @@ from datetime import timedelta
 from django.db.models.functions import TruncDate
 from .serializers import (
     UserSerializer, UserProfileSerializer, SceneSerializer,
-    TemplateSerializer, TemplateCommentSerializer
+    TemplateSerializer, TemplateCommentSerializer, PromptTemplateSerializer
 )
-from .models import User, Scene, Template, TemplateComment, TemplateUsage
+from .models import (
+    User, Scene, Template, TemplateComment, 
+    TemplateUsage, PromptTemplate
+)
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -181,6 +184,57 @@ class RecommendedTemplatesView(generics.ListAPIView):
         ).order_by('-rating', '-usage_count')[:10]
 
         return recommended_templates
+
+class PromptTemplateViewSet(viewsets.ModelViewSet):
+    queryset = PromptTemplate.objects.all()
+    serializer_class = PromptTemplateSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['name', 'description', 'tags']
+    ordering_fields = ['created_at', 'updated_at', 'name']
+
+    def get_queryset(self):
+        queryset = PromptTemplate.objects.all()
+        
+        # 搜索
+        search = self.request.query_params.get('search', None)
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) |
+                Q(description__icontains=search) |
+                Q(tags__icontains=search)
+            )
+        
+        # 标签过滤
+        tags = self.request.query_params.get('tags', None)
+        if tags:
+            tag_list = tags.split(',')
+            for tag in tag_list:
+                queryset = queryset.filter(tags__contains=[tag])
+        
+        # 时间范围过滤
+        time_range = self.request.query_params.get('time_range', None)
+        if time_range:
+            if time_range == 'today':
+                queryset = queryset.filter(created_at__date=timezone.now().date())
+            elif time_range == 'week':
+                queryset = queryset.filter(created_at__gte=timezone.now() - timedelta(days=7))
+            elif time_range == 'month':
+                queryset = queryset.filter(created_at__gte=timezone.now() - timedelta(days=30))
+        
+        # 排序
+        sort_by = self.request.query_params.get('sort_by', 'created_at')
+        sort_order = self.request.query_params.get('sort_order', 'desc')
+        
+        if sort_order == 'desc':
+            queryset = queryset.order_by(f'-{sort_by}')
+        else:
+            queryset = queryset.order_by(sort_by)
+        
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(creator=self.request.user)
 
 class TemplateAnalyticsView(APIView):
     permission_classes = [permissions.IsAuthenticated]

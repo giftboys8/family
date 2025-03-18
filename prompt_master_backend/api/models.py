@@ -1,5 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 
 class User(AbstractUser):
     # Add custom fields for the user model here
@@ -49,6 +50,20 @@ class TemplateComment(models.Model):
 
     def __str__(self):
         return f"Comment on {self.template.name} by {self.user.username}"
+
+class PromptTemplate(models.Model):
+    name = models.CharField(max_length=200)
+    description = models.TextField()
+    content = models.TextField()
+    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='prompt_templates')
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_public = models.BooleanField(default=True)
+    tags = models.JSONField(default=list)
+    version = models.IntegerField(default=1)
+    
+    def __str__(self):
+        return self.name
 
 class TemplateUsage(models.Model):
     template = models.ForeignKey(Template, on_delete=models.CASCADE)

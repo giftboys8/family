@@ -1,6 +1,9 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import User, Scene, Template, TemplateComment
+from .models import (
+    User, Scene, Template, TemplateComment, 
+    TemplateUsage, PromptTemplate
+)
 
 User = get_user_model()
 
@@ -25,6 +28,21 @@ class SceneSerializer(serializers.ModelSerializer):
         model = Scene
         fields = ('id', 'name', 'description', 'created_at', 'updated_at', 'creator', 'tags')
         read_only_fields = ('id', 'created_at', 'updated_at', 'creator')
+
+class PromptTemplateSerializer(serializers.ModelSerializer):
+    creator = UserSerializer(read_only=True)
+
+    class Meta:
+        model = PromptTemplate
+        fields = (
+            'id', 'name', 'description', 'content', 'creator',
+            'created_at', 'updated_at', 'is_public', 'tags', 'version'
+        )
+        read_only_fields = ('creator', 'created_at', 'updated_at')
+
+    def create(self, validated_data):
+        validated_data['creator'] = self.context['request'].user
+        return super().create(validated_data)
 
 class TemplateCommentSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)

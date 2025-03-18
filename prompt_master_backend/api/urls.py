@@ -1,11 +1,16 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from .views import (
     RegisterView, LoginView, UserProfileView, RecommendedScenesView,
     TemplateListView, TemplateDetailView, TemplateUseView, TemplateCommentView,
-    RecommendedTemplatesView, TemplateAnalyticsView
+    RecommendedTemplatesView, TemplateAnalyticsView, PromptTemplateViewSet
 )
 
+router = DefaultRouter()
+router.register(r'prompt-templates', PromptTemplateViewSet)
+
 urlpatterns = [
+    path('', include(router.urls)),
     path('auth/register/', RegisterView.as_view(), name='register'),
     path('auth/login/', LoginView.as_view(), name='login'),
     path('auth/profile/', UserProfileView.as_view(), name='user-profile'),
